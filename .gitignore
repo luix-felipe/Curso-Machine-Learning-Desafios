@@ -1,0 +1,11 @@
+﻿__pycache__/
+*.pyc
+.ipynb_checkpoints/
+desafios/desafio_02/output/
+desafios/desafio_03/output.avi
+desafios/desafio_04/desafio_4_resultado.jpeg
+
+# Arquivos auxiliares/saidas geradas
+._*
+**/._*
+desafios/desafio_01/desafio_1_resultado.jpeg
