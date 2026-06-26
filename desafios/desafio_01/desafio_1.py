@@ -1,104 +1,39 @@
-from argparse import ArgumentParser
 from pathlib import Path
+import os
 
 import cv2
 
 
-BASE_DIR = Path(__file__).resolve().parent
+os.chdir(Path(__file__).resolve().parent)
 
+# Ler imagem
+image_bgr = cv2.imread("desafio_1.jpeg")
+image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
 
-def aplicar_desfoque_fundo(
-    image_path: Path,
-    cascade_path: Path,
-    output_path: Path,
-    padding: int = 100,
-    blur_kernel: int = 15,
-    blur_sigma: int = 20,
-) -> None:
-    image = cv2.imread(str(image_path))
-    if image is None:
-        raise FileNotFoundError(f"Nao foi possivel carregar a imagem: {image_path}")
+# Transformar em escala de cinza
+image_gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
 
-    detector = cv2.CascadeClassifier(str(cascade_path))
-    if detector.empty():
-        raise FileNotFoundError(f"Nao foi possivel carregar o classificador: {cascade_path}")
+# Detectar as faces
+detec = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+face = detec.detectMultiScale(image_gray, 1.3, 3)
+copy_image_rgb = image_rgb.copy()
 
-    image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    faces = detector.detectMultiScale(image_gray, scaleFactor=1.3, minNeighbors=3)
-    if len(faces) == 0:
-        raise RuntimeError("Nenhuma face foi detectada na imagem.")
+padding = 100
 
-    if blur_kernel % 2 == 0:
-        blur_kernel += 1
+for (x, y, larg, alt) in face:
+    ret = cv2.rectangle(copy_image_rgb, (x, y), (x + larg, y + alt), (0, 255, 0), 3)
+    y, height = max(0, y - padding), min(y + alt + padding, image_rgb.shape[0])
+    x, width = max(0, x - padding), min(x + larg + padding, image_rgb.shape[1])
+    face_img = image_rgb[y:height, x:width, :]
 
-    final_image = cv2.GaussianBlur(image, (blur_kernel, blur_kernel), blur_sigma)
+# Borrar a imagem inteira
+blured_image = cv2.GaussianBlur(image_rgb, (15, 15), 20)
 
-    for x, y, width, height in faces:
-        y1 = max(0, y - padding)
-        y2 = min(y + height + padding, image.shape[0])
-        x1 = max(0, x - padding)
-        x2 = min(x + width + padding, image.shape[1])
+# Substituir imagem original da face na imagem borrada
+final_image = blured_image.copy()
+final_image[y:height, x:width, :] = face_img
 
-        final_image[y1:y2, x1:x2, :] = image[y1:y2, x1:x2, :]
+final_image_bgr = cv2.cvtColor(final_image, cv2.COLOR_RGB2BGR)
+cv2.imwrite("desafio_1_resultado.jpeg", final_image_bgr)
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    if not cv2.imwrite(str(output_path), final_image):
-        raise RuntimeError(f"Nao foi possivel salvar a imagem em: {output_path}")
-
-    print(f"Imagem salva em: {output_path}")
-    print(f"Faces detectadas: {len(faces)}")
-
-
-def parse_args():
-    parser = ArgumentParser(
-        description="Aplica desfoque no fundo da imagem mantendo a regiao da face nitida."
-    )
-    parser.add_argument(
-        "--image",
-        type=Path,
-        default=BASE_DIR / "desafio_1.jpeg",
-        help="Caminho da imagem de entrada.",
-    )
-    parser.add_argument(
-        "--cascade",
-        type=Path,
-        default=BASE_DIR / "haarcascade_frontalface_default.xml",
-        help="Caminho do classificador Haar Cascade.",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=BASE_DIR / "desafio_1_resultado.jpeg",
-        help="Caminho da imagem de saida.",
-    )
-    parser.add_argument(
-        "--padding",
-        type=int,
-        default=100,
-        help="Padding em pixels ao redor da face detectada.",
-    )
-    parser.add_argument(
-        "--blur-kernel",
-        type=int,
-        default=15,
-        help="Tamanho do kernel do GaussianBlur. Se for par, sera ajustado para impar.",
-    )
-    parser.add_argument(
-        "--blur-sigma",
-        type=int,
-        default=20,
-        help="Sigma usado no GaussianBlur.",
-    )
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    args = parse_args()
-    aplicar_desfoque_fundo(
-        image_path=args.image,
-        cascade_path=args.cascade,
-        output_path=args.output,
-        padding=args.padding,
-        blur_kernel=args.blur_kernel,
-        blur_sigma=args.blur_sigma,
-    )
+print("Imagem salva em: desafio_1_resultado.jpeg")
